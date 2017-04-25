@@ -12,6 +12,16 @@ import AVFoundation
 import CoreAudio
 import AudioUnit
 
+class DSPEngineSettings {
+    static let sharedInstance = DSPEngineSettings( )
+    private init( ){ }
+    var eqBands : [Float32] = [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+    var eqBandGains : [Float32] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    var bandCount : UInt32 = UInt32(10)
+    var bandWidth : Float32 = 0.1
+    var bandBypass : Float32 = 0
+}
+
 class GraphContext {
     var graph : AUGraph?
     var rioUnit: AudioUnit?
@@ -78,23 +88,15 @@ class DSPEngine {
         
         var eqSampleRate : Float64 = 44100
         result = AudioUnitSetProperty(graphContext.eqUnit!, kAudioUnitProperty_SampleRate, kAudioUnitScope_Output, bus0, &eqSampleRate, UInt32(MemoryLayout<Float64>.size))
-        var eqBands : [Float32] = [32, 250, 500, 1000, 2000]
-        var bandCount : UInt32 = UInt32(eqBands.count)
-        var bandWidth : Float32 = 0.5
-        var bandBypass : Float32 = 0
-        var bandGain : Float32 = 0
+       
         
-        result = AudioUnitSetProperty(graphContext.eqUnit!, kAUNBandEQProperty_NumberOfBands, kAudioUnitScope_Global, 0, &bandCount, UInt32(MemoryLayout<UInt32>.size))
-        
-        var postBandCount : UInt32 = 0
-        var postBandSize : UInt32 = UInt32(MemoryLayout<UInt32>.size)
-        AudioUnitGetProperty(graphContext.eqUnit!, kAUNBandEQProperty_NumberOfBands, kAudioUnitScope_Global, 0, &postBandCount, &postBandSize)
-        
-        for i in 0..<bandCount {
-            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Frequency + UInt32(i), kAudioUnitScope_Global, 0, eqBands[Int(i)], UInt32(MemoryLayout<Float32>.size))
-            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Bandwidth + UInt32(i), kAudioUnitScope_Global, 0, bandWidth, UInt32(MemoryLayout<Float32>.size))
-            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_BypassBand + UInt32(i), kAudioUnitScope_Global, 0, bandBypass, UInt32(MemoryLayout<Float32>.size))
-            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Gain + UInt32(i), kAudioUnitScope_Global, 0, bandGain, UInt32(MemoryLayout<Float32>.size))
+        result = AudioUnitSetProperty(graphContext.eqUnit!, kAUNBandEQProperty_NumberOfBands, kAudioUnitScope_Global, 0, &DSPEngineSettings.sharedInstance.bandCount, UInt32(MemoryLayout<UInt32>.size))
+
+        for i in 0..<DSPEngineSettings.sharedInstance.bandCount {
+            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Frequency + UInt32(i), kAudioUnitScope_Global, 0, DSPEngineSettings.sharedInstance.eqBands[Int(i)], UInt32(MemoryLayout<Float32>.size))
+            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Bandwidth + UInt32(i), kAudioUnitScope_Global, 0, DSPEngineSettings.sharedInstance.bandWidth, UInt32(MemoryLayout<Float32>.size))
+            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_BypassBand + UInt32(i), kAudioUnitScope_Global, 0, DSPEngineSettings.sharedInstance.bandBypass, UInt32(MemoryLayout<Float32>.size))
+            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Gain + UInt32(i), kAudioUnitScope_Global, 0, DSPEngineSettings.sharedInstance.eqBandGains[Int(i)], UInt32(MemoryLayout<Float32>.size))
         }
         
         result = AUGraphInitialize(graphContext.graph!)
@@ -106,5 +108,10 @@ class DSPEngine {
     func suspend( ) {
         //Pause processing audio
         self.running = false
+    }
+    
+    func updateGain(forBand band: Int, onChannel channel: Int, withValue value: Float32) {
+        let result: OSStatus = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Gain + UInt32(band), kAudioUnitScope_Global, 0, value, UInt32(MemoryLayout<Float32>.size))
+        
     }
 }

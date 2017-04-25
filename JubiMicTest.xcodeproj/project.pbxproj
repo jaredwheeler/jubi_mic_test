@@ -13,7 +13,6 @@
 		0A04CD9C1EAA4C32002CD7AD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0A04CD9B1EAA4C32002CD7AD /* Assets.xcassets */; };
 		0A04CD9F1EAA4C32002CD7AD /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 0A04CD9D1EAA4C32002CD7AD /* LaunchScreen.storyboard */; };
 		0A04CDA81EAA4E86002CD7AD /* DSPEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A04CDA71EAA4E86002CD7AD /* DSPEngine.swift */; };
-		0A04CDAA1EAA5061002CD7AD /* DSPEngineSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A04CDA91EAA5061002CD7AD /* DSPEngineSettings.swift */; };
 		0A04CDB21EAA56A8002CD7AD /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0A04CDAC1EAA51E9002CD7AD /* AudioToolbox.framework */; };
 		0A04CDB31EAA5752002CD7AD /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0A04CDAE1EAA51E9002CD7AD /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
@@ -27,7 +26,6 @@
 		0A04CD9E1EAA4C32002CD7AD /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		0A04CDA01EAA4C32002CD7AD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0A04CDA71EAA4E86002CD7AD /* DSPEngine.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DSPEngine.swift; path = DSPEngine/DSPEngine.swift; sourceTree = "<group>"; };
-		0A04CDA91EAA5061002CD7AD /* DSPEngineSettings.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = DSPEngineSettings.swift; path = DSPEngine/DSPEngineSettings.swift; sourceTree = "<group>"; };
 		0A04CDAC1EAA51E9002CD7AD /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 		0A04CDAD1EAA51E9002CD7AD /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		0A04CDAE1EAA51E9002CD7AD /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
@@ -81,7 +79,6 @@
 			isa = PBXGroup;
 			children = (
 				0A04CDA71EAA4E86002CD7AD /* DSPEngine.swift */,
-				0A04CDA91EAA5061002CD7AD /* DSPEngineSettings.swift */,
 			);
 			name = DSPEngine;
 			sourceTree = "<group>";
@@ -170,7 +167,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0A04CDAA1EAA5061002CD7AD /* DSPEngineSettings.swift in Sources */,
 				0A04CD971EAA4C32002CD7AD /* ViewController.swift in Sources */,
 				0A04CDA81EAA4E86002CD7AD /* DSPEngine.swift in Sources */,
 				0A04CD951EAA4C32002CD7AD /* AppDelegate.swift in Sources */,
