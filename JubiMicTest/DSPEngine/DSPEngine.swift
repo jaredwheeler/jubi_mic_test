@@ -12,16 +12,26 @@ import AVFoundation
 import CoreAudio
 import AudioUnit
 
+class GraphContext {
+    var graph : AUGraph?
+    var rioUnit: AudioUnit?
+    var eqUnit: AudioUnit?
+}
 
 class DSPEngine {
     var running: Bool = false
-    var rioUnit: AudioUnit? = nil
-    var sessionASBD: AudioStreamBasicDescription? = nil
 
     static let sharedInstance = DSPEngine( )
     private init( ){ }
     
+    var graphContext = GraphContext( )
+    
     func prepare( ) {
+        
+        var rioNode : AUNode = AUNode()
+        var nBandNode : AUNode = AUNode()
+        var result : OSStatus = noErr;
+        
         // Get the AVAudioSession
         let audioSession: AVAudioSession = AVAudioSession.sharedInstance()
         do {
@@ -33,53 +43,68 @@ class DSPEngine {
         }
         
         guard audioSession.isInputAvailable else { fatalError("No AudioSession Input Available") }
-
-        // Get the RIO component description
-        var audioCompDesc = AudioComponentDescription(componentType: kAudioUnitType_Output, componentSubType: kAudioUnitSubType_RemoteIO, componentManufacturer: kAudioUnitManufacturer_Apple, componentFlags: 0, componentFlagsMask: 0)
-        let rioComponent = AudioComponentFindNext(nil, &audioCompDesc)
         
-        // Setup the RIO AudioUnit
-        AudioComponentInstanceNew(rioComponent!, &rioUnit)
+        result = NewAUGraph(&graphContext.graph)
+        
+        var rioDesc = AudioComponentDescription(componentType: kAudioUnitType_Output, componentSubType: kAudioUnitSubType_RemoteIO, componentManufacturer: kAudioUnitManufacturer_Apple, componentFlags: 0, componentFlagsMask: 0)
+        var nBandDesc = AudioComponentDescription(componentType: kAudioUnitType_Effect, componentSubType: kAudioUnitSubType_NBandEQ, componentManufacturer: kAudioUnitManufacturer_Apple, componentFlags: 0, componentFlagsMask: 0)
+        
+        result = AUGraphAddNode(graphContext.graph!, &rioDesc, &rioNode)
+        result = AUGraphAddNode(graphContext.graph!, &nBandDesc, &nBandNode)
+        
+        result = AUGraphConnectNodeInput(graphContext.graph!, rioNode, 1, nBandNode, 0)
+        result = AUGraphConnectNodeInput(graphContext.graph!, nBandNode, 0, rioNode, 0)
+        
+        result = AUGraphOpen(graphContext.graph!)
+        
+        result = AUGraphNodeInfo(graphContext.graph!, rioNode, nil, &graphContext.rioUnit)
+        result = AUGraphNodeInfo(graphContext.graph!, nBandNode, nil, &graphContext.eqUnit)
+        
         var oneFlag: UInt32 = 1
         let bus0: AudioUnitElement = 0
-        AudioUnitSetProperty(rioUnit!, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Output, bus0, &oneFlag, UInt32(MemoryLayout<UInt32>.size))
         let bus1: AudioUnitElement = 1
-        AudioUnitSetProperty(rioUnit!, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, bus1, &oneFlag, UInt32(MemoryLayout<UInt32>.size))
         
-        // Grab a LPCM ASBD and plug it into the stream formats
-        sessionASBD = AudioStreamBasicDescription(mSampleRate: 44100, mFormatID: kAudioFormatLinearPCM, mFormatFlags: kAudioFormatFlagsNativeEndian | kAudioFormatFlagIsPacked | kAudioFormatFlagIsFloat | kAudioFormatFlagIsNonInterleaved, mBytesPerPacket: 4, mFramesPerPacket: 1, mBytesPerFrame: 4, mChannelsPerFrame: 1, mBitsPerChannel: 32, mReserved: 0)
-        AudioUnitSetProperty(rioUnit!, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, bus1, &sessionASBD, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
-        AudioUnitSetProperty(rioUnit!, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, bus0, &sessionASBD, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
-        var maxFramesPerSlice: UInt32 = 4096
-        AudioUnitSetProperty(rioUnit!, AudioUnitPropertyID(kAudioUnitProperty_MaximumFramesPerSlice), AudioUnitScope(kAudioUnitScope_Global), 0, &maxFramesPerSlice, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
+        //Connect the I/O and EQ units
+        result = AudioUnitSetProperty(graphContext.rioUnit!, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Output, bus0, &oneFlag, UInt32(MemoryLayout<UInt32>.size))
+        result = AudioUnitSetProperty(graphContext.rioUnit!, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, bus1, &oneFlag, UInt32(MemoryLayout<UInt32>.size))
         
-        // Callback stuff
-        var callbackStruct = AURenderCallbackStruct(inputProc: naïveRenderCallback, inputProcRefCon: &rioUnit)
-        AudioUnitSetProperty(rioUnit!, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, bus0, &callbackStruct, UInt32(MemoryLayout<AURenderCallbackStruct>.size))
         
-        // Pull the trigger
-        AudioUnitInitialize(rioUnit!)
+        var sessionASBD = AudioStreamBasicDescription(mSampleRate: 44100, mFormatID: kAudioFormatLinearPCM, mFormatFlags: kAudioFormatFlagsNativeEndian | kAudioFormatFlagIsPacked | kAudioFormatFlagIsFloat | kAudioFormatFlagIsNonInterleaved, mBytesPerPacket: 4, mFramesPerPacket: 1, mBytesPerFrame: 4, mChannelsPerFrame: 1, mBitsPerChannel: 32, mReserved: 0)
         
+        result = AudioUnitSetProperty(graphContext.rioUnit!, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, bus1, &sessionASBD, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
+        result = AudioUnitSetProperty(graphContext.rioUnit!, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, bus0, &sessionASBD, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
+        
+        result = AudioUnitSetProperty(graphContext.eqUnit!, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, bus0, &sessionASBD, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
+        
+        var eqSampleRate : Float64 = 44100
+        result = AudioUnitSetProperty(graphContext.eqUnit!, kAudioUnitProperty_SampleRate, kAudioUnitScope_Output, bus0, &eqSampleRate, UInt32(MemoryLayout<Float64>.size))
+        var eqBands : [Float32] = [32, 250, 500, 1000, 2000]
+        var bandCount : UInt32 = UInt32(eqBands.count)
+        var bandWidth : Float32 = 0.5
+        var bandBypass : Float32 = 0
+        var bandGain : Float32 = 0
+        
+        result = AudioUnitSetProperty(graphContext.eqUnit!, kAUNBandEQProperty_NumberOfBands, kAudioUnitScope_Global, 0, &bandCount, UInt32(MemoryLayout<UInt32>.size))
+        
+        var postBandCount : UInt32 = 0
+        var postBandSize : UInt32 = UInt32(MemoryLayout<UInt32>.size)
+        AudioUnitGetProperty(graphContext.eqUnit!, kAUNBandEQProperty_NumberOfBands, kAudioUnitScope_Global, 0, &postBandCount, &postBandSize)
+        
+        for i in 0..<bandCount {
+            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Frequency + UInt32(i), kAudioUnitScope_Global, 0, eqBands[Int(i)], UInt32(MemoryLayout<Float32>.size))
+            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Bandwidth + UInt32(i), kAudioUnitScope_Global, 0, bandWidth, UInt32(MemoryLayout<Float32>.size))
+            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_BypassBand + UInt32(i), kAudioUnitScope_Global, 0, bandBypass, UInt32(MemoryLayout<Float32>.size))
+            result = AudioUnitSetParameter(graphContext.eqUnit!, kAUNBandEQParam_Gain + UInt32(i), kAudioUnitScope_Global, 0, bandGain, UInt32(MemoryLayout<Float32>.size))
+        }
+        
+        result = AUGraphInitialize(graphContext.graph!)
     }
     
     func resume( ) {
-        //Start processing audio
-        self.running = true
-        AudioOutputUnitStart(rioUnit!)
+        AUGraphStart(graphContext.graph!)
     }
-    
     func suspend( ) {
         //Pause processing audio
         self.running = false
-    }
-    
-    let naïveRenderCallback: AURenderCallback = {(inRefCon, ioActionFlags, inTimeStamp, inBusNumber, inNumberFrames, ioData) -> OSStatus in
-        let inRIOUnit = UnsafeMutablePointer<AudioUnit>(OpaquePointer(inRefCon)).pointee
-        
-        var bus1: UInt32 = 1
-        var status: OSStatus
-        status = AudioUnitRender(inRIOUnit, ioActionFlags, inTimeStamp, bus1, inNumberFrames, ioData!)
-
-        return noErr
     }
 }
