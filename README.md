@@ -1,5 +1,8 @@
 # Jubi Audio Test
 
-XCode version: 8.2.1
+XCode version: 9.2
 Language: Swift 3
-Tested on device: iPhone 7, iOS 10.2.1
+Tested on device: iPhone 7, iOS 11.1
+
+---
+
